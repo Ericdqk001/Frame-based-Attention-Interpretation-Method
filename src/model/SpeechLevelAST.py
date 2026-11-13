@@ -20,6 +20,8 @@ class SpeechLevelAST(nn.Module):
             "adapted_frame_based_AST_params.pt",
         ),
     ):
+        """Set params_file_path=None when loading a trained checkpoint, so the
+        pretrained SSAST parameters are not required."""
         super().__init__()
 
         self.sentence_level_block = nn.DataParallel(

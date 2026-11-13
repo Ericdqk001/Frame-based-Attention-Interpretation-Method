@@ -9,7 +9,7 @@ from model.CustomASTModel import CustomASTConfig, CustomASTModel
 class SentenceLevelEncoder(nn.Module):
     def __init__(
         self,
-        params_file_path: Path,
+        params_file_path: Path = None,
     ):
         super().__init__()
 
@@ -19,12 +19,15 @@ class SentenceLevelEncoder(nn.Module):
             config=configuration,
         )
 
-        self.encoder.load_state_dict(
-            torch.load(
-                params_file_path,
-                # map_location=torch.device("cpu"),
+        # Skip when loading a trained checkpoint afterwards, which already
+        # contains these parameters
+        if params_file_path is not None:
+            self.encoder.load_state_dict(
+                torch.load(
+                    params_file_path,
+                    map_location=torch.device("cpu"),
+                )
             )
-        )
 
     def forward(
         self,

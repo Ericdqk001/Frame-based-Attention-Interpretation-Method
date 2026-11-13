@@ -28,12 +28,14 @@ class SentenceLevelAST(nn.Module):
 
         self.out_proj = nn.Linear(768, 2)
 
-        self.encoder.load_state_dict(
-            torch.load(
-                params_file_path,
-                map_location=torch.device("cpu"),
+        # Pass params_file_path=None when loading a trained checkpoint afterwards
+        if params_file_path is not None:
+            self.encoder.load_state_dict(
+                torch.load(
+                    params_file_path,
+                    map_location=torch.device("cpu"),
+                )
             )
-        )
 
         self.reinit_n_layers = reinit_encoders_n_layers
 
