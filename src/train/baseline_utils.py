@@ -1,94 +1,17 @@
 import math
+from pathlib import Path
 
-import psutil
 import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from transformers import get_linear_schedule_with_warmup
 
-import wandb
-from load.load import SegmentLevelDataset, SegmentLevelDatasetTest
+from load.load import SegmentLevelDataset
 from model.SentenceLevelAST import SentenceLevelAST
 
 torch.manual_seed(seed=42)
 if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed=42)
-
-
-def check_cpu_memory():
-    # Get CPU utilization as a percentage
-    cpu_percent = psutil.cpu_percent(interval=1)
-    print("CPU percent used:", cpu_percent, "%")
-
-    # Get information about system memory usage
-    vm_info = psutil.virtual_memory()
-    print("Total virtual memory:", vm_info.total / (1024**3), "GB")
-    print("Available virtual memory:", vm_info.available / (1024**3), "GB")
-    print("Used virtual memory:", vm_info.used / (1024**3), "GB")
-    print("Memory percent used:", vm_info.percent, "%")
-
-    print("RAM memory % used:", psutil.virtual_memory()[2])
-    # Getting usage of virtual_memory in GB ( 4th field)
-    print("RAM Used (GB):", psutil.virtual_memory()[3] / 1000000000)
-
-    # Return a dictionary of CPU and memory information
-    return {
-        "RAM memory % used": psutil.virtual_memory()[2],
-        "RAM Used (GB)": psutil.virtual_memory()[3] / 1000000000,
-    }
-
-
-def check_mps_memory():
-    process = psutil.Process()
-    mem_info = process.memory_info()
-    print("Memory used:", mem_info.rss / 1024 / 1024 / 1024, "GB")
-    print("Virtual memory used:", mem_info.vms / 1024 / 1024 / 1024, "GB")
-
-    vm_info = psutil.virtual_memory()
-    print("Total virtual memory:", vm_info.total / 1024 / 1024 / 1024, "GB")
-    print("Available virtual memory:", vm_info.available / 1024 / 1024 / 1024, "GB")
-    print("Used virtual memory:", vm_info.used / 1024 / 1024 / 1024, "GB")
-    print("Memory percent used:", vm_info.percent, "%")
-    print("---------")
-
-    return {
-        "memory used": mem_info.rss / 1024 / 1024 / 1024,
-        "virtual memory used": mem_info.vms / 1024 / 1024 / 1024,
-        "total virtual memory": vm_info.total / 1024 / 1024 / 1024,
-        "available virtual memory": vm_info.available / 1024 / 1024 / 1024,
-        "used virtual memory": vm_info.used / 1024 / 1024 / 1024,
-        "memory percent used": vm_info.percent,
-    }
-
-
-def check_memory():
-    print(
-        "torch.cuda.memory_allocated: %fGB"
-        % (torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024)
-    )
-    print(
-        "torch.cuda.memory_reserved: %fGB"
-        % (torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024)
-    )
-    print(
-        "torch.cuda.max_memory_reserved: %fGB"
-        % (torch.cuda.max_memory_reserved(0) / 1024 / 1024 / 1024)
-    )
-    print("---------")
-
-    return {
-        "memory allocated": torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024,
-        "memory reserved": torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024,
-        "max memory reserved": torch.cuda.max_memory_reserved(0) / 1024 / 1024 / 1024,
-    }
-
-
-def get_accuracy(logits, label):
-    _, predicted = torch.max(logits, 1)
-    correct = (predicted == label).float()
-    accuracy = correct.sum() / len(correct)
-
-    return accuracy
 
 
 def calculate_steps(config=None):
@@ -119,7 +42,7 @@ def build_optimizer_scheduler(
     total_steps=None,
     warmup_steps=None,
 ):
-    """Builds the optimizer for the model using wandb sweep config."""
+    """Builds the optimizer for the model using the training config."""
     lr_ast = config.lr_ast
 
     weight_decay = config.weight_decay
@@ -198,12 +121,16 @@ def requires_no_grad(model=None):
 
 def build_loader(config=None):
     dataset = SegmentLevelDataset(
+        annotations_file_path=Path("annotations", "train_segment_level_42.csv"),
+        segment_level_data_path=Path("data", "segment_level_train"),
         waveform_normalize=True,
         mean=-2.9899,
         std=4.3509,
     )
 
-    val_dataset = SegmentLevelDatasetTest(
+    val_dataset = SegmentLevelDataset(
+        annotations_file_path=Path("annotations", "test_segment_level_42.csv"),
+        segment_level_data_path=Path("data", "segment_level_test"),
         waveform_normalize=True,
         mean=-2.9899,
         std=4.3509,
@@ -254,8 +181,6 @@ def train_one_epoch(
 
     # Iterate over batches of data
     for i, batch in enumerate(train_loader, start=1):
-        wandb.log(check_memory())
-
         # Move batch tensors to the same device as the model
         audio_inputs, attention_mask, target = (
             batch["audio_inputs"].to(device),
@@ -275,16 +200,12 @@ def train_one_epoch(
         # Record loss
         batch_loss = loss.detach()
 
-        wandb.log({"train batch loss": batch_loss})
-
         total_loss += batch_loss
 
         # Backward pass
         loss.backward()
 
-        accuracy = get_accuracy(outputs, target).cpu()
-
-        wandb.log({"train batch accuracy": accuracy})
+        print(f"train batch loss: {batch_loss:.4f}")
 
         # Try to free up memory
         torch.cuda.empty_cache()
@@ -306,9 +227,6 @@ def validate(
     model.eval()
 
     total_loss = 0.0
-
-    logits_list = []
-    labels_list = []
 
     # Disable gradient computations
     with torch.no_grad():
@@ -333,53 +251,38 @@ def validate(
             # Add up the validation loss
             total_loss += loss.item()
 
-            logits_list.append(outputs.detach().cpu())
-            labels_list.append(target.detach().cpu())
-
             torch.cuda.empty_cache()
-
-    logits = torch.cat(logits_list, dim=0)
-    labels = torch.cat(labels_list, dim=0)
-
-    accuracy = get_accuracy(logits, labels).cpu()
-
-    wandb.log({"validation accuracy": accuracy})
 
     # Return average loss
     return total_loss / len(val_loader)
 
 
 def train(
-    wandb,
+    config,
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = build_model(
-        wandb.config,
+        config,
         device=device,
     )
 
-    # Create a wandb artifact for the best model
-    model_artifact = wandb.Artifact(
-        wandb.run.name, type="model"
-    )  # Use run name as the artifact name
-
     total_steps, warmup_steps = calculate_steps(
-        config=wandb.config,
+        config=config,
     )
 
     optimizer, scheduler = build_optimizer_scheduler(
         model=model,
-        config=wandb.config,
+        config=config,
         total_steps=total_steps,
         warmup_steps=warmup_steps,
     )
 
     train_loader, val_loader = build_loader(
-        config=wandb.config,
+        config=config,
     )
 
-    for epoch in range(wandb.config.epochs):
+    for epoch in range(config.epochs):
         avg_loss = train_one_epoch(
             model=model,
             train_loader=train_loader,
@@ -387,7 +290,6 @@ def train(
             scheduler=scheduler,
             device=device,
         )
-        wandb.log({"train epoch loss": avg_loss, "epoch": epoch})
 
         # Call the validation function
         avg_val_loss = validate(
@@ -396,11 +298,10 @@ def train(
             device=device,
         )
 
-        wandb.log({"validation loss": avg_val_loss, "epoch": epoch})
+        print(
+            f"epoch {epoch + 1}: train loss {avg_loss:.4f}, "
+            f"validation loss {avg_val_loss:.4f}"
+        )
 
         if epoch + 1 > 5:
             torch.save(model.state_dict(), f"seg_model_weights{epoch + 1}.pt")
-
-            model_artifact.add_file(f"seg_model_weights{epoch + 1}.pt")
-
-    wandb.run.log_artifact(model_artifact)

@@ -1,4 +1,3 @@
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 
@@ -203,67 +202,3 @@ def map_relevancy_to_spec_size(relevancy: torch.tensor):
     reconstructed_relevancy[torch.isnan(reconstructed_relevancy)] = 0
 
     return reconstructed_relevancy
-
-
-if __name__ == "__main__":
-    from load.load import SpeechLevelDataset
-    from model.SpeechLevelAST import SpeechLevelAST
-    from torch.utils.data import DataLoader
-
-    dataset = SpeechLevelDataset(
-        waveform_normalize=False,
-        mean=-2.9899,
-        std=4.3509,
-    )
-
-    dataloader = DataLoader(
-        dataset=dataset,
-        batch_size=None,
-        shuffle=True,
-    )
-
-    batch = next(iter(dataloader))
-
-    device = "cpu"
-
-    model = SpeechLevelAST(
-        reinit_encoders_n_layers=2,
-        num_layers_pl_encoder=4,
-        params_file_path=Path(
-            "data",
-            "pretrained_params",
-            "adapted_frame_based_AST_params.pt",
-        ),
-    ).to(device)
-
-    audio_inputs = batch["audio_inputs"].to(device)
-    audio_attn_masks = batch["audio_attn_masks"].to(device)
-
-    # Forward pass
-    outputs = model(
-        audio_inputs=audio_inputs,
-        audio_attn_masks=audio_attn_masks,
-    )
-
-    # The size of embeddings is [2, 768, 1, 1023] before transmuting.
-
-    # Test if attention_masks can be correctly mapped onto the paddings.
-
-    relevancy = audio_attn_masks[0]
-
-    print(relevancy.shape)
-
-    reconstructed_relevancy = map_relevancy_to_spec_size(relevancy)
-
-    plot_spec_with_pads(
-        spec=audio_inputs[0],
-    )
-
-    plot_spec_without_pads(
-        spec=audio_inputs[0],
-    )
-
-    plot_relevancy_map_with_pads(
-        spec=audio_inputs[0],
-        relevancy_map=reconstructed_relevancy,
-    )

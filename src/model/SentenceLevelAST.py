@@ -2,12 +2,8 @@ from pathlib import Path
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
 
 from model.CustomASTModel import CustomASTConfig, CustomASTModel
-
-# from azureml.fsspec import AzureMachineLearningFileSystem
-from src.load.load import SegmentLevelDataset
 
 
 class SentenceLevelAST(nn.Module):
@@ -30,12 +26,14 @@ class SentenceLevelAST(nn.Module):
 
         self.out_proj = nn.Linear(768, 2)
 
-        self.encoder.load_state_dict(
-            torch.load(
-                params_file_path,
-                map_location=torch.device("cpu"),
+        # Pass params_file_path=None when loading a trained checkpoint afterwards
+        if params_file_path is not None:
+            self.encoder.load_state_dict(
+                torch.load(
+                    params_file_path,
+                    map_location=torch.device("cpu"),
+                )
             )
-        )
 
         self.reinit_n_layers = reinit_encoders_n_layers
 
@@ -80,27 +78,3 @@ class SentenceLevelAST(nn.Module):
         elif isinstance(module, nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
-
-
-if __name__ == "__main__":
-    segment_level_dataset = SegmentLevelDataset(
-        waveform_normalize=True,
-    )
-
-    dataloader = DataLoader(
-        segment_level_dataset,
-        batch_size=2,
-        shuffle=True,
-    )
-
-    data = next(iter(dataloader))
-
-    audio_inputs = data["audio_inputs"]
-    audio_attn_masks = data["audio_attn_masks"]
-
-    model = SentenceLevelAST(reinit_encoders_n_layers=2)
-
-    output = model(
-        audio_inputs,
-        audio_attn_masks,
-    )
