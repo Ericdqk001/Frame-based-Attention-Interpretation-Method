@@ -14,14 +14,6 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed=42)
 
 
-def get_accuracy(logits, label):
-    _, predicted = torch.max(logits, 1)
-    correct = (predicted == label).float()
-    accuracy = correct.sum() / len(correct)
-
-    return accuracy
-
-
 def calculate_steps(config=None):
     """Calculates the total number of training steps and decide warmup steps.
 
@@ -213,9 +205,7 @@ def train_one_epoch(
         # Backward pass
         loss.backward()
 
-        accuracy = get_accuracy(outputs, target).cpu()
-
-        print(f"train batch loss: {batch_loss:.4f}, accuracy: {accuracy:.4f}")
+        print(f"train batch loss: {batch_loss:.4f}")
 
         # Try to free up memory
         torch.cuda.empty_cache()
@@ -237,9 +227,6 @@ def validate(
     model.eval()
 
     total_loss = 0.0
-
-    logits_list = []
-    labels_list = []
 
     # Disable gradient computations
     with torch.no_grad():
@@ -264,17 +251,7 @@ def validate(
             # Add up the validation loss
             total_loss += loss.item()
 
-            logits_list.append(outputs.detach().cpu())
-            labels_list.append(target.detach().cpu())
-
             torch.cuda.empty_cache()
-
-    logits = torch.cat(logits_list, dim=0)
-    labels = torch.cat(labels_list, dim=0)
-
-    accuracy = get_accuracy(logits, labels).cpu()
-
-    print(f"validation accuracy: {accuracy:.4f}")
 
     # Return average loss
     return total_loss / len(val_loader)

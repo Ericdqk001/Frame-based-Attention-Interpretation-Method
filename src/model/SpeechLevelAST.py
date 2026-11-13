@@ -47,7 +47,7 @@ class SpeechLevelAST(nn.Module):
     ):
         """A AST model that operates at a speech level.
 
-        check the paper at http://arxiv.org/abs/2309.13476 for details.
+        check the paper at https://arxiv.org/abs/2406.03138 for details.
 
 
         Args:

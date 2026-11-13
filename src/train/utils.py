@@ -13,17 +13,6 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed=42)
 
 
-def get_accuracy(logits, label):
-    _, predicted = torch.max(logits, 1)
-    correct = (predicted == label).float()
-    accuracy = correct.sum() / len(correct)
-
-    print(predicted)
-    print(label)
-
-    return accuracy
-
-
 def calculate_steps(config=None):
     """Calculates the total number of training steps.
 
@@ -193,10 +182,6 @@ def train_one_epoch(
     # Set model to training mode
     model.train()
 
-    logits_list = []
-
-    labels_list = []
-
     total_loss = 0.0
 
     # Iterate over batches of data
@@ -215,10 +200,6 @@ def train_one_epoch(
         # Compute loss for the batch
         loss = torch.nn.functional.cross_entropy(outputs, target)
 
-        logits_list.append(outputs.detach().cpu())
-
-        labels_list.append(target.detach().cpu())
-
         batch_loss = loss.detach()
 
         # Sum batch loss up for later calculation of average epoch loss
@@ -231,12 +212,7 @@ def train_one_epoch(
 
         # Accumulate gradients to update weights every accumulation_steps
         if i % config.accumulation_steps == 0 or i == len(train_loader):
-            logits = torch.cat(logits_list, dim=0)
-            labels = torch.cat(labels_list, dim=0)
-
-            accuracy = get_accuracy(logits, labels).cpu()
-
-            print(f"train batch loss: {batch_loss:.4f}, accuracy: {accuracy:.4f}")
+            print(f"train batch loss: {batch_loss:.4f}")
 
             optimizer.step()
             scheduler.step()
@@ -253,9 +229,6 @@ def validate(
 ):
     # Set model to evaluation mode
     model.eval()
-
-    logits_list = []
-    labels_list = []
 
     total_loss = 0.0
 
@@ -279,16 +252,6 @@ def validate(
 
             # Add up the validation loss
             total_loss += loss.item()
-
-            logits_list.append(outputs.detach().cpu())
-            labels_list.append(target.detach().cpu())
-
-    logits = torch.cat(logits_list, dim=0)
-    labels = torch.cat(labels_list, dim=0)
-
-    accuracy = get_accuracy(logits, labels).cpu()
-
-    print(f"validation accuracy: {accuracy:.4f}")
 
     # Return average loss
     return total_loss / len(validation_loader)

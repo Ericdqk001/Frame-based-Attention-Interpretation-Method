@@ -97,8 +97,8 @@ The hyperparameters in `src/train.py` are those used for the paper:
 It is only used to compute the learning-rate schedule; set it to the size of your own
 training set when training on different data.
 
-After each epoch the script reports the training loss and the loss and accuracy on the
-test split; this monitoring does not affect training. Checkpoints are saved for epochs
+After each epoch the script reports the training loss and the loss on the test split;
+this monitoring does not affect training. Checkpoints are saved for epochs
 6–10 as `model_weights<epoch>.pt` in the working directory.
 
 To load a trained checkpoint without the SSAST file:
