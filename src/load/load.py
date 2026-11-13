@@ -307,8 +307,8 @@ class SegmentLevelDataset(Dataset):
 
         if self.waveform_normalize:
             audio_input["input_values"] = (
-                audio_input["input_values"] - self.mean
-            ) / self.std
+                (audio_input["input_values"] - self.mean) / self.std * 0.5
+            )
 
         # Remove the batch dimension because dataloader will add it.
         audio_input["input_values"] = audio_input["input_values"].squeeze(0)
