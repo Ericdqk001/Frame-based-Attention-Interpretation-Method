@@ -1,6 +1,6 @@
 # An interpretable speech foundation model for depression detection
 
-Code for the INTERSPEECH 2025 paper:
+Code for the paper:
 
 > Qingkun Deng, Saturnino Luz, Sofia de la Fuente Garcia. *An interpretable speech
 > foundation model for depression detection by revealing prediction-relevant acoustic
@@ -31,7 +31,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-`requirements.txt` pins the versions used for the paper (PyTorch 2.0.1, Transformers 4.36.2).
+`requirements.txt` pins the versions this code was tested with (PyTorch 2.0.1, Transformers 4.36.2).
 
 ## Pretrained weights
 
@@ -86,7 +86,7 @@ The hyperparameters in `src/train.py` are those used for the paper:
 
 | Setting | Value |
 |---|---|
-| Epochs | 10 |
+| Epochs | 10 (the total number of epochs used in the paper) |
 | Learning rate | 3e-5, linear warmup over the first 10% of steps, then linear decay |
 | Gradient accumulation | 64 participants per update (batch size 1) |
 | Weight decay | 0.01 |
@@ -99,8 +99,7 @@ training set when training on different data.
 
 After each epoch the script reports the training loss and the loss and accuracy on the
 test split; this monitoring does not affect training. Checkpoints are saved for epochs
-6–10 as `model_weights<epoch>.pt` in the working directory. The model reported in the
-paper is the epoch 9 checkpoint. Training took about 4 hours on one NVIDIA A100 GPU.
+6–10 as `model_weights<epoch>.pt` in the working directory.
 
 To load a trained checkpoint without the SSAST file:
 
@@ -124,22 +123,16 @@ script; call `train(config)` with a config that provides `epochs`, `batch_size`,
 `annotations/{train,test}_segment_level_42.csv` (columns `id`, `file_stem`, `label`) and
 `data/segment_level_{train,test}/<file_stem>.wav`.
 
-## Interpretation
-
-The relevance method is implemented in `src/interpret/scripts/relevancy_generator.py`.
-It combines attention maps and their gradients across layers, following
-[Chefer et al. (2021)](https://github.com/hila-chefer/Transformer-Explainability), to
-score each recording (speech level) and each spectrogram frame (sentence level).
-`src/interpret/scripts/highlight_spec.py` maps frame relevance back onto the spectrogram.
-
 ## Citation
 
 ```bibtex
-@inproceedings{deng2025interpretable,
-  title     = {An interpretable speech foundation model for depression detection by revealing prediction-relevant acoustic features from long speech},
-  author    = {Deng, Qingkun and Luz, Saturnino and de la Fuente Garcia, Sofia},
-  booktitle = {Proc. Interspeech 2025},
-  year      = {2025}
+@misc{deng2024interpretable,
+  title         = {An interpretable speech foundation model for depression detection by revealing prediction-relevant acoustic features from long speech},
+  author        = {Deng, Qingkun and Luz, Saturnino and de la Fuente Garcia, Sofia},
+  year          = {2024},
+  eprint        = {2406.03138},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2406.03138}
 }
 ```
 
