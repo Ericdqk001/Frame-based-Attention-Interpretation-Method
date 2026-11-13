@@ -154,15 +154,6 @@ class SpeechLevelDataset(Dataset):
             "id": id,
         }
 
-    def load_audio(
-        self,
-        waveform_path: str,
-    ) -> torch.tensor:
-        with self.file_system.open(waveform_path) as f:
-            waveform, sample_rate = torchaudio.load(f)
-
-        return waveform, sample_rate
-
     def silence_waveform(
         self,
         waveform: torchaudio,

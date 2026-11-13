@@ -5,8 +5,6 @@ from torch import nn
 
 from model.CustomASTModel import CustomASTConfig, CustomASTModel
 
-# from azureml.fsspec import AzureMachineLearningFileSystem
-
 
 class SentenceLevelAST(nn.Module):
     def __init__(
