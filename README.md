@@ -52,7 +52,8 @@ the paper's number of training participants and only sets the learning-rate sche
 change it for your data. Loss on the test split is printed after each epoch, and
 checkpoints for epochs 6–10 are saved as `model_weights<epoch>.pt`.
 
-**Baseline:** call `train(config)` in `src/train/baseline_utils.py`. It reads
+**Baseline:** `python src/baseline_train.py` (paper settings; `train_sample_num` is the
+number of training segments). It reads
 `annotations/{train,test}_segment_level_42.csv` (`id`, `file_stem`, `label`) and
 `data/segment_level_{train,test}/<file_stem>.wav`.
 
