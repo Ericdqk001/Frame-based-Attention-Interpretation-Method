@@ -74,6 +74,23 @@ Each participant has a folder of recordings, one per sentence, named so that `<s
 gives the start time used to order them. Up to 42 recordings per participant are used.
 The paths can be changed in `build_loader()` in `src/train/utils.py`.
 
+### Spectrogram normalisation
+
+Spectrograms are normalised as `(x - mean) / std * 0.5`, which is the same as the
+`(x - mean) / (2 * std)` used by AST and SSAST. The mean and standard deviation used in
+the paper are set in `src/load/load.py` and `src/train/baseline_utils.py`:
+
+| Model | mean | std |
+|---|---|---|
+| Speech-level AST | -4.1389 | 5.3054 |
+| Segment-level baseline | -2.9899 | 4.3509 |
+
+These values were most likely computed on the paper's (private) data, but their exact
+origin is no longer certain. For training on new data, compute the statistics on your own
+training set, or use the AudioSet statistics from the original AST
+([Gong et al., 2021](https://github.com/YuanGongND/ast)), which are also the defaults of
+the Hugging Face `ASTFeatureExtractor`: mean **-4.2677393**, std **4.5689974**.
+
 ## Training
 
 From the repository root:
