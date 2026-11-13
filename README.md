@@ -43,6 +43,9 @@ AST AudioSet values: mean -4.2677393, std 4.5689974.
 
 ## Training
 
+Run all commands from the repository root (data and weight paths are relative to it);
+checkpoints are saved there.
+
 ```bash
 python src/train.py
 ```
