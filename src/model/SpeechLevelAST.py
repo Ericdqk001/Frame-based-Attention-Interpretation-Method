@@ -1,11 +1,9 @@
 from pathlib import Path
 
 import torch
-from src.load.load import SpeechLevelDataset
 
 # from ParticipantLevelEncoder import ParticipantLevelEncoder
 from torch import nn
-from torch.utils.data import DataLoader
 
 from model.SentenceLevelEncoder import SentenceLevelEncoder
 from model.SpeechLevelEncoder import SpeechLevelEncoder
@@ -106,31 +104,3 @@ class SpeechLevelAST(nn.Module):
         elif isinstance(module, nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
-
-
-if __name__ == "__main__":
-    dataset = SpeechLevelDataset(
-        waveform_normalize=False,
-        mean=-2.9899,
-        std=4.3509,
-    )
-
-    dataloader = DataLoader(
-        dataset=dataset,
-        batch_size=None,
-        shuffle=True,
-    )
-
-    batch = next(iter(dataloader))
-
-    device = "cpu"
-
-    model = SpeechLevelAST(
-        reinit_encoders_n_layers=2,
-        num_layers_pl_encoder=6,
-        params_file_path=Path(
-            "data",
-            "pretrained_params",
-            "adapted_frame_based_AST_params.pt",
-        ),
-    ).to(device)

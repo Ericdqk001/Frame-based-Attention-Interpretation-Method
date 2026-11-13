@@ -1,8 +1,8 @@
 import math
+from pathlib import Path
 
 import torch
-import wandb
-from load.load import SpeechLevelDataset, SpeechLevelDatasetTest
+from load.load import SpeechLevelDataset
 from model.SpeechLevelAST import SpeechLevelAST
 from torch.optim import Adam
 from torch.utils.data import DataLoader
@@ -56,7 +56,7 @@ def build_optimizer_scheduler(
     total_steps=None,
     warmup_steps=None,
 ):
-    """Builds the optimizer for the model using wandb sweep config."""
+    """Builds the optimizer for the model using the training config."""
     lr_ast = config.lr_ast
 
     weight_decay = config.weight_decay
@@ -138,10 +138,14 @@ def requires_no_grad(model=None):
 def build_loader():
     # Read the data
     dataset = SpeechLevelDataset(
+        annotations_file_path=Path("annotations", "train_speech_level.csv"),
+        speech_level_data_path=Path("data", "speech_level_train"),
         waveform_normalize=True,
     )
 
-    val_dataset = SpeechLevelDatasetTest(
+    val_dataset = SpeechLevelDataset(
+        annotations_file_path=Path("annotations", "test_speech_level.csv"),
+        speech_level_data_path=Path("data", "speech_level_test"),
         waveform_normalize=True,
     )
 
@@ -197,7 +201,6 @@ def train_one_epoch(
 
     # Iterate over batches of data
     for i, batch in enumerate(train_loader, start=1):
-        wandb.log(check_memory())
         # Move batch tensors to the same device as the model
         audio_inputs = batch["audio_inputs"].to(device)
         audio_attn_masks = batch["audio_attn_masks"].to(device)
@@ -228,14 +231,12 @@ def train_one_epoch(
 
         # Accumulate gradients to update weights every accumulation_steps
         if i % config.accumulation_steps == 0 or i == len(train_loader):
-            wandb.log({"train batch loss": batch_loss})
-
             logits = torch.cat(logits_list, dim=0)
             labels = torch.cat(labels_list, dim=0)
 
             accuracy = get_accuracy(logits, labels).cpu()
 
-            wandb.log({"train batch accuracy": accuracy})
+            print(f"train batch loss: {batch_loss:.4f}, accuracy: {accuracy:.4f}")
 
             optimizer.step()
             scheduler.step()
@@ -287,47 +288,42 @@ def validate(
 
     accuracy = get_accuracy(logits, labels).cpu()
 
-    wandb.log({"validation accuracy": accuracy})
+    print(f"validation accuracy: {accuracy:.4f}")
 
     # Return average loss
     return total_loss / len(validation_loader)
 
 
 def train(
-    wandb,
+    config,
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # device = "cpu"
-
-    model_artifact = wandb.Artifact(wandb.run.name, type="model")
 
     model = build_model(
-        wandb.config,
+        config,
         device=device,
     )
 
-    total_steps, warmup_steps = calculate_steps(config=wandb.config)
+    total_steps, warmup_steps = calculate_steps(config=config)
 
     optimizer, scheduler = build_optimizer_scheduler(
         model=model,
-        config=wandb.config,
+        config=config,
         total_steps=total_steps,
         warmup_steps=warmup_steps,
     )
 
     train_loader, val_loader = build_loader()
 
-    for epoch in range(wandb.config.epochs):
+    for epoch in range(config.epochs):
         avg_loss = train_one_epoch(
-            config=wandb.config,
+            config=config,
             model=model,
             train_loader=train_loader,
             optimizer=optimizer,
             scheduler=scheduler,
             device=device,
         )
-
-        wandb.log({"train epoch loss": avg_loss, "epoch": epoch})
 
         # Call the validation function
         avg_val_loss = validate(
@@ -336,23 +332,10 @@ def train(
             device=device,
         )
 
-        wandb.log({"validation loss": avg_val_loss, "epoch": epoch})
+        print(
+            f"epoch {epoch + 1}: train loss {avg_loss:.4f}, "
+            f"validation loss {avg_val_loss:.4f}"
+        )
 
         if epoch + 1 > 5:
             torch.save(model.state_dict(), f"model_weights{epoch + 1}.pt")
-
-            model_artifact.add_file(f"model_weights{epoch + 1}.pt")
-
-    # # Use run name as the artifact name
-    # torch.save(best_model_weights, "best_model_weights.pt")
-    # torch.save(model.state_dict(), "current_model_weights.pt")
-    # model_artifact.add_file("best_model_weights.pt")
-    # model_artifact.add_file("current_model_weights.pt")
-    wandb.run.log_artifact(model_artifact)
-
-
-if __name__ == "__main__":
-    pass
-    # TODO Ensure that validation set split works (Done)
-
-    # TODO Ensure that param file can be found on azure

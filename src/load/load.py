@@ -12,6 +12,8 @@ from transformers import ASTFeatureExtractor
 class SpeechLevelDataset(Dataset):
     def __init__(
         self,
+        annotations_file_path=Path("annotations", "test_speech_level.csv"),
+        speech_level_data_path=Path("data", "speech_level_test"),
         sampling_rate=16000,
         waveform_normalize=True,
         mean=-4.1389,
@@ -21,19 +23,14 @@ class SpeechLevelDataset(Dataset):
         true_positive_ids=None,
         true_negative_ids=None,
     ):
-        self.annotations = pd.read_csv(
-            Path(
-                "annotations/test_speech_level.csv",
-            ),
-        )
+        self.annotations = pd.read_csv(annotations_file_path)
 
-        self.speech_level_data_path = Path(
-            "data/speech_level_test/",
-        )
+        self.speech_level_data_path = Path(speech_level_data_path)
 
         self.sampling_rate = sampling_rate
 
-        self.batch_size = 2
+        # Maximum number of recordings (sentences) used per participant
+        self.batch_size = 42
 
         self.waveform_normalize = waveform_normalize
 
@@ -247,6 +244,8 @@ class SpeechLevelDataset(Dataset):
 class SegmentLevelDataset(Dataset):
     def __init__(
         self,
+        annotations_file_path=Path("annotations", "test_segment_level_42.csv"),
+        segment_level_data_path=Path("data", "segment_level_test"),
         sampling_rate=16000,
         waveform_normalize=False,
         mean=-4.1389,
@@ -254,12 +253,9 @@ class SegmentLevelDataset(Dataset):
     ):
         self.sampling_rate = sampling_rate
 
-        self.segment_level_annotations = pd.read_csv(
-            Path(
-                "annotations",
-                "test_segment_level_42.csv",
-            )
-        )
+        self.segment_level_annotations = pd.read_csv(annotations_file_path)
+
+        self.segment_level_data_path = Path(segment_level_data_path)
 
         self.waveform_normalize = waveform_normalize
 
@@ -275,11 +271,9 @@ class SegmentLevelDataset(Dataset):
         return len(self.segment_level_annotations)
 
     def __getitem__(self, index):
-        waveform_path = (
-            "data/"
-            "segment_level_test/"
-            + self.segment_level_annotations.loc[index, "file_stem"]
-            + ".wav"
+        waveform_path = Path(
+            self.segment_level_data_path,
+            self.segment_level_annotations.loc[index, "file_stem"] + ".wav",
         )
 
         segment_id = self.segment_level_annotations.loc[index, "id"]
@@ -373,44 +367,3 @@ class SegmentLevelDataset(Dataset):
 
 
 # %%
-
-if __name__ == "__main__":
-    dataset = SpeechLevelDataset(
-        id_sentences_frames_path=Path("src/test/id_sentences_frames.json"),
-        num_sentences_to_remove=1,
-        true_positive_ids=["178"],
-        true_negative_ids=["762", "833"],
-    )
-
-    dataloader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=None,
-    )
-
-    for batch in dataloader:
-        if batch["id"] == "178":
-            audio_inputs = batch["audio_inputs"]
-
-            # plot_spec_without_pads(audio_inputs[4])
-
-    import numpy as np
-
-    waveform_zero = np.array(dataset.waveform_zero)
-
-    np.save(Path("src", "test", "waveform_zero.npy"), waveform_zero)
-
-    # Below is for plotting spec with only relevant frames
-    # dataset = SpeechLevelDataset()
-
-    # dataloader = torch.utils.data.DataLoader(
-    #     dataset,
-    #     batch_size=None,
-    # )
-
-    # for batch in dataloader:
-    #     print(batch["id"])
-    #     print(batch["audio_inputs"].shape)
-    #     print(batch["audio_attn_masks"].shape)
-    #     print(batch["label"])
-    #     plot_spec_with_pads(batch["audio_inputs"][0])
-    #     break

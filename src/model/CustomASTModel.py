@@ -1,5 +1,4 @@
 import math
-from pathlib import Path
 from typing import Optional, Tuple, Union
 
 import torch
@@ -403,26 +402,3 @@ class CustomASTModel(ASTModel):
 def create_encoder():
     encoder = CustomASTModel.from_pretrained("MIT/ast-finetuned-audioset-10-10-0.4593")
     return encoder
-
-
-if __name__ == "__main__":
-    configuration = CustomASTConfig()
-
-    ast = CustomASTModel(
-        config=configuration,
-    )
-
-    adapted_frame_based_AST_params = Path(
-        "pretrained_params",
-        "adapted_frame_based_AST_params.pt",
-    )
-
-    ast.load_state_dict(
-        torch.load(
-            adapted_frame_based_AST_params,
-            # map_location=torch.device("cpu"),
-        )
-    )
-
-
-# %%
