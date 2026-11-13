@@ -32,7 +32,8 @@ annotations/{train,test}_speech_level.csv        columns: id, label (0/1)
 data/speech_level_{train,test}/<id>/<id>-<start>-<end>.wav
 ```
 
-One folder per participant, one recording per sentence, ordered by `<start>`; up to 42
+Recordings must be mono WAV files (other sample rates are resampled to 16 kHz). One
+folder per participant, one recording per sentence, ordered by `<start>`; up to 42
 recordings per participant are used.
 
 Spectrograms are normalised as `(x - mean) / std * 0.5`. The mean/std in the code
